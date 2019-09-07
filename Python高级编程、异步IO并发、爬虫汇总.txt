@@ -1,0 +1,546 @@
+Python高级编程、异步IO并发、爬虫汇总
+
+https://mp.weixin.qq.com/s?__biz=MzUzNTk1NDc2Nw==&mid=2247483869&idx=1&sn=7f77dee7598a9c19815c63a13f5311f3&chksm=fafcd5fdcd8b5ceb4e1d847d44fe612987aa590a63322ef5192700ecbbd9f0558f4ca08792c9&mpshare=1&scene=1&srcid=&sharer_sharetime=1567382345164&sharer_shareid=5baeb4516dc33f60573dd0b37ccd54cf&pass_ticket=dSqJIcJYpk3QSDJND2kLN%2Brw5HZI3YNp8Ly0nlnTfUJLHIGu6ZLjohzhR0ORREVd#rd
+
+
+一、python中一切皆为对象
+函数和类也是对象，属于python的一等公民
+１．赋值给一个变量
+２．可以添加到集合对象中
+３．可以作为参数传递给函数
+４．可以当做函数的返回值
+
+type,object,class的关系
+
+object是最顶层基类，type是一个类，同时也是一个对象
+
+python中的内置呢理性
+对象的三个特征，身份(id),类型(type()),值
+
+
+类型：
+None(全局只有一个)
+数值(int,float,complex,bool)
+迭代类型
+序列类型(list,bytes,bytearray,memoryview,range,tuple,str,array)
+映射(dict)
+集合(set,frozenset)
+上下文管理器(with)
+其他类型
+
+二、魔法方法
+
+__init__等以双下划线开头，双下划线结尾的系统内置函数
+
+非数学运算
+字符串表示
+
+__repr__, __str__
+
+集合，序列相关
+
+__len__,__getitem__,__setitem__,__delitem__,__contains__
+
+迭代相关
+
+__iter__ ,__next__
+
+可调用  __call__
+
+with上下文管理器　　__enter__ , __exit__
+
+数值转换
+
+__abs__ , __bool__, __init__ , __float__
+__hash__, __index__
+
+元类相关
+
+__new__, __init__
+
+属性相关
+
+__getattr__,__setattr__,__getattribute__,
+__setattribute__, __dir__
+
+属性描述符
+
+__get__,__set__,__delete__
+
+
+协程
+
+__await__,__aiter__,__anext__
+__aenter__,__aexit__
+
+
+数学运算
+一元运算符
+二元运算符
+算术运算符
+反向算术运算符
+
+在服务器上安装go，一个全新的生态！
+三、　深入类和对象
+
+鸭子类型：这种类型不是tuple,list,而是iterable,callable这些
+
+检查某个类是否有某种方法
+hasattr(obj,"__len__")
+
+判断某个对象的类型
+from collections.abc import Sized
+isinstance(obj,Sized)
+
+强制某个子类必须实现某些方法
+如web框架需要继承cache(redis,cache,memorycache)
+
+import abc
+class CacheBase(metaclass=abc.ABCMeta):
+	@abc.abstractmethod
+	def get(self,key):
+		pass
+	@abc.abstractmethod
+	def set(self,key,value)
+		pass
+
+class RedisCache(CacheBase):
+	pass
+
+
+
+isinstance和type的区别(一个返回布尔值，一个返回类型名称)
+
+
+MRO(Method Resolution Order)
+新式类，广度优先
+
+print(Obj.__mro__)可打印出顺序
+实例方法，静态方法(@staticmethod),类方法(@classmethod)
+私有属性：__name,但并不绝对安全的，可以通过obj._Classname__attr的方式调用
+python的自省机制：自省是通过一定的机制查询到对象的内部结构(obj.__dict__,
+ClassName.__dict__,dir(obj),dir(ClassName))
+
+super()函数(子类中执行super().__init__()),注意super函数不一定调用的是父类，
+而是一句前述MRO的顺序来执行
+
+Mixin模式特点
+1.Mixin功能单一
+２．不和基类关联，可以和任意基类组合
+3.在Mixin中不要使用super
+
+上下文管理器协议(with语句)
+__enter__,__exit__
+
+简化方式contextlib
+
+
+class Sample():
+	def  __enter__(self):
+		print("enter")
+		return self
+	def __exit__(self,exc__type,exc__val,exc_tb):
+		print("exit")
+	def do_something(self):
+		print("do something")
+with Sample() as sample:
+	sample.do_something()
+
+
+import contextlib
+
+@contextlib.contextmanager
+def file_open(file_name):
+	print("file open")
+	yield {}
+	print("file closed")
+
+with file_open("text_txt") as f_opened:
+	print("")
+
+四、自定义序列类
+
+
+从不同维度可分为，容器序列，扁平序列，可变序列，不可变序列
+
+容器序列(可放置不同数据类型):list,tuple,deque
+扁平序列：str,bytes,bytearray,array.array
+可变序列：list,deque,bytearray,array
+不可变序列：str,tuple,bytes
+
+＋，＋＝,extend的区别
+
++只能接受相同的序列类型
++=右侧可以接受任意序列类型，通过__iadd__魔法函数实现，
+该方法内部使用extend来实现
+
+append会将传入的序列作为一个值而非遍历地加入原序列
+
+
+切片
+
+模式[start:end:step]
+当step为１时可以省略，并且省略步长时可以同时省略最后一个冒号
+当step为负整数时，表示反向切片，这时start应该比end的值要大
+
+
+通过实现__getitem__等魔法函数即可为自定义序列添加切片等功能
+
+import numbers
+
+class Group:
+    def __init__(self, group_name, company_name, staffs):
+        self.group_name = group_name
+        self.company_name = company_name
+        self.staffs = staffs
+
+    def __reversed__(self):
+        self.staffs.reverse()
+
+    def __getitem__(self, item):
+        cls = type(self)
+        if isinstance(item, slice):
+            return cls(group_name=self.group_name, company_name=self.company_name, staffs=self.staffs[item])
+        elif isinstance(item, numbers.Integral):
+            return cls(group_name=self.group_name, company_name=self.company_name, staffs=[self.staffs[item]])
+
+    def __len__(self):
+        return len(self.staffs)
+
+    def __iter__(self):
+        return iter(self.staffs)
+
+    def __contains__(self, item):
+        if item in self.staffs:
+            return True
+        else:
+            return False
+
+
+使用bisect来维护排序序列效率很高
+列表使用list很普遍，但有时array(只能存放指定类型)，deque会更好
+
+列表推导式（列表推导式），生成器表达式，字典推导式
+
+列表生辰器的性能高于列表操作
+
+五、深入python的set和dict
+
+dict属于 MutableMapping 类型，MutableMapping继承 Mapping，Mapping 继承 Collection
+
+
+浅拷贝 dict 内部的 dict 或 list 元素在拷贝后只是一个指向，因而在新的 dict 内进行修改也会修改原 dict，而深拷贝则是一份彻底的拷贝。此外，不建议继承 List 和 Dict，因其均使用 C语言书写，正常的继承不会生效，如确需操作，可能过继承 collections.UserDict等方式。
+
+set(集合)、frozenset(不可变集合)：无序、不重复，frozenset 可以作为 dict 的 key
+
+set的性能很高，set 添加数据可以通过 add 方法
+
+dict查找的性能远远大于list，list 的查找时间随着数据增大而增大，而 dict 的查找时间则几乎没有变化
+
+1. dict的key或者set的值 都必须是可以hash的
+不可变对象 都是可hash的， str， fronzenset， tuple，自己实现的类 __hash__
+2. dict的内存花销大，但是查询速度快， 自定义的对象 或者python内部的对象都是用dict包装的
+3. dict的存储顺序和元素添加顺序有关
+4. 添加数据有可能改变已有数据的顺序
+
+六、对象引用，可变性和垃圾回收
+
+python和java中的变量本质不一样，python的变量实质上是一个指针
+is判断两个变量的id/内存地址是否相同
+==判断两个变量值是否相等，
+python中垃圾回收的算法采用引用计数，只有在计数器等于０时才会回收对象
+
+尽量避免在方法声明中可变参数的传递
+
+七、元类编程
+
+通过@property可以以属性的方式来方式来调用方法，如果要用属性的方法来设定值，
+则通过@xxx.setter装饰器来定义方法
+
+__getattr__在查找不到属性时调用,__getattribute__方法任何属性都会调用
+
+属性描述符
+
+实现__get__,__set__,__delete__任意方法称为属性描述符，实现了__get__和
+__set__的称为数据属性描述符，仅实现了__get__方法的称为非数据属性描述符
+
+import numbers
+
+
+class IntField:
+    def __get__(self, instance, owner):
+        return self.value
+
+    # def __set__(self, instance, value):
+    #     if not isinstance(value, numbers.Integral):
+    #         raise ValueError("int value required")
+    #     if value < 0:
+    #         raise ValueError("positive number required")
+    #     self.value = value
+    #
+    # def __delete__(self, instance):
+    #     pass
+
+
+class User:
+    age = IntField()
+
+if __name__ == "__main__":
+    user = User()
+    # user.age = 20
+    user.__dict__["age"] = 20
+    print(user.__dict__)
+    print(getattr(user, 'age'))
+    print(user.age)
+如果user是某个类的实例，那么user.age（以及等价的getattr(user,’age’)）首先调用__getattribute__，如果类定义了__getattr__方法，那么在__getattribute__抛出 AttributeError 的时候就会调用到__getattr__，而对于描述符(__get__）的调用，则是发生在__getattribute__内部的。
+user = User(), 那么user.age 顺序如下：
+
+（1）如果“age”是出现在User或其基类的__dict__中， 且age是data descriptor， 那么调用其__get__方法, 否则
+
+（2）如果“age”出现在user的__dict__中， 那么直接返回 obj.__dict__[‘age’]， 否则
+
+（3）如果“age”出现在User或其基类的__dict__中
+
+（3.1）如果age是non-data descriptor，那么调用其__get__方法， 否则
+
+（3.2）返回 __dict__[‘age’]
+
+（4）如果User有__getattr__方法，调用__getattr__方法，否则
+
+（5）抛出AttributeError
+
+__new__,__init__的区别
+
+__new__用来控制对象的生成过程，在对象生成之前执行，__init__用来完善对象
+
+如果__new__方法不返回对象(return super().__new__(cls)),则
+不会调用__init__方法
+
+
+元类 Meta Class
+# 元类是创建类的类， type->class（对象）->对象
+
+class MetaClass(type): # 创建元类，需继承 type
+    def __new__(cls, *args, **kwargs):
+        return super().__new__(cls, *args, **kwargs)
+
+class User(metaclass=MetaClass): # 使用 metaclass 来指定元类
+    def __init__(self, name):
+        self.name = name
+    def __str__(self):
+        return self.name
+
+if __name__ == "__main__":
+    my_obj = User(name="test")
+    print(my_obj) # test
+
+八．　迭代器和生成器
+
+迭代器是访问集合内元素的一种方式，一般用来遍历数据
+迭代器和以下标的方式访问不一样，迭代器是不能返回的，迭代器提供了
+一种惰性方式的数据访问。列表等可迭代数据类型通过__iter__来实现迭代
+获取字节码对象:dis.dis(func)
+
+九、python　socket编程
+
+应用层和传输层之前可以有一个socket接口
+
+
+osi层　　　　　　功能　　　　　　　　　　　　　　　　　TCP/IP协议
+应用层　　　　　文件传输，电子邮件，文件服务　　　　　　　HTTP,FTP,SMTP,DNS,Telnet等
+传输层　　　　　提供端对端的接口　　　　　　　　　　　　　TCP,UDP
+网络层　　　　　为数据包选择路由　　　　　　　　　　　　IP,ICMP等
+数据链路层　　　　传输有地址的帧，错误检测功能　　　　ARP等
+物理层　　　　　　物理媒体　　　　　　　　　　　　　　1000BASE,SX
+
+socket,bind(协议，地址，端口)，listen(监听客户端socket请求),accept()
+阻塞等待连接请求(新套接字)，recv(),send(),close()
+socket,connect(),send(),recv(),close()
+
+
+
+# Client
+
+import socket
+client = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+client.connect()"127.0.0.1",8000))
+
+while True:
+	re_data = input()
+	client.send(re_data.encode("utf8"))
+	data = client.recv(1024)
+	print(data.decode("utf8"))
+
+
+# Server
+
+import socket
+import threading
+
+server = socket.socket(socket.AF_INEF,socket.SOCK_STREAM)
+server.bind("0.0.0.0",8000)
+server.listen()
+
+def handle_sock(sock,addr):
+	while True:
+		data = sock.recv(1024)
+		print(data.decode("utf8"))
+		re_data = input()
+		sock.send(re_data.encode("utf8"))
+
+
+# 获取从客户端发送的数据，1获取１ｋ的数据
+
+while True:
+	sock,addr= server.accpet()
+	# 用线程去处理新接收的连接(用户)
+	client_thread = threading.Thread(target=handle_sock,args=(sock,addr))
+	client_thread.start()
+
+
+十、多线程，多进程和线程池编程
+
+
+GIL:Global Interpreter Lock
+
+python中一个线程对应c语言中的一个线程，GIL使得同一时刻只有一个线程在一个
+cpu上执行字节码，无法将多个线程映射到多个CPU上执行。
+
+GIL会根据执行的字节码行数以及时间片释放GIL,另外GIL 在遇到 io 操作的时候也会主动释放。
+
+from threading import Lock, RLock
+# 1、锁的最大问题是会影响性能
+# 2、锁会引起死锁（ acquire 前没有 release 或相互争夺资源的情况下）
+# 3、使用 Rlock在同一个线程里面，可以连续调用多次 acquired，但要注意 acquire的次数要和 release 相同
+lock = Lock()
+lock.acquire()  # 获取锁
+...             # 代码段
+lock.release()  # 释放锁
+
+
+############################
+from threading import Condition
+# Condition 的启动顺序很重要
+cond = threading.Condition()
+with cond:
+    self.cond.wait()
+    self.cond.notify()
+
+from threading import Semaphore
+# Semaphore 可用于控制指定数量的线程并发，同样拥有 acquire()和 release()方法
+
+############################
+from concurrent.futures import ThreadPoolExecutor, as_completed, wait, FIRST_COMPLETED
+# 线程池：主线程中可以获取某一个线程的状态或者某一个任务的状态以及返回值。当一个线程完成的时候主线程能立即知道，futures 可以让多线程编码接口一致
+executor = ThreadPoolExecutor(max_workers=2)
+# 获取已经成功的 Task 返回
+all_task = [executor.submit(get_html, (url)) for url in urls]
+wait(all_task, return_when=FIRST_COMPLETED)
+
+# for future in as_completed(all_task):
+#     data = future.result()
+#     print("get {} page".format(data))
+
+# 通过 executor 的 map获取已经完成的 task的值
+# for data in executor.map(get_html, urls):
+#     print("get {} page".format(data))
+
+# # done 用于判定某个任务是否完成
+# print(task1.done())
+# # result 可以获取执行结果，是个阻塞的方法
+# print(task1.result())
+
+多进程编程
+耗 CPU 的操作(数学计算、图像处理)，用多进程操作，对于 IO 操作使用多线程编程，因为就操作系统而言进程切换代价要高于线程。
+
+共享全局变量不适用于多进程编程，进程间数据是隔离的，但可以通过实例化 Manager().dict()在实现该数据共享。
+
+multiprocessing 中的 Queue 不能用于 pool 进程池，pool 中进程间通信需要使用 Manager 中的 Queue
+
+通过 Pipe 实现进程间通信，Pipe 性能高于 Queue，但Pipe 只能适用于两个进程
+
+十一、协程和异步io
+
+并发是指一个时间段内，有几个程序在同一个CPU上运行，但任意时刻只有一个程序在cpu上运行
+并行是指在任意时刻点上，有多个程序同时运行在多个cpu上
+同步是指代码调用io操作时，必须等待io操作完成才返回的调用方式
+异步是指代码调用io操作时，不必等待io操作完成就返回的调用方式
+
+阻塞是指调用函数时当前线程被挂起
+非阻塞是指调用函数时当前线程不会被挂起，而是立即返回
+
+unix下５种io模型
+
+阻塞式io
+非阻塞式io
+io复用
+信号驱动式io
+异步io
+
+select,poll,epoll
+
+生成器不止可以产出值，还可以接收值
+
+在调用send发送非None值之前，必须启动一次生成器，方式有两种：
+１．gen.send(None)
+2. next(gen)
+
+send方法可以传递值到生成器内部，还可以重启生成器到下一个位置
+GeneratorExit继承子BaseException,而非Exception
+
+import types
+# from collections.abc import Awaitable
+# Python 为了将语义变得更加明确，就引入了 async 和 await 关键词用于定义原生的协程
+# await 后面需要跟 Awaitable 对象
+@types.coroutine
+def downloader(url):
+    yield "demo"
+
+# async def downloader(url):
+#     return "demo"
+
+async def download_url(url):
+     html = await downloader(url)
+     return html
+
+if __name__ == "__main__":
+    coro = download_url("https://www.baidu.com")
+    coro.send(None)
+
+十二,asyncio并发编程
+
+asyncio
+
+1.　包含各种特定系统实现的模块化事件循环
+２．传输和协议抽象
+３．对TCP,UDP,SSL,子进程，延时调用以及它的具体支持
+４．模仿futures模块但适用于事件循环使用的Future类
+５．基于 yield from 的协议和任务，可以让你用顺序的方式编写并发代码
+６．必须使用一个将产生阻塞IO的调用时，有接口可以把这个事件转移到线程池
+7. 模仿threading模块中的同步原语，可以在单线程内的协程之间
+
+
+# asyncio 是 Python 用于解决异步 IO 编程的一整套解决方案   
+import asyncio           
+from functools import partial  
+
+async def get_html(url):
+    print("start get url")
+    await asyncio.sleep(2)
+    print("end get url")
+    # return "demo"
+
+if __name__ == "__main__":
+    tasks = [get_html("https://www.baidu.com") for i in range(10)]
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(asyncio.wait(tasks))
+    # get_future = asyncio.ensure_future(get_html("https://www.baidu.com")) # loop.create_task()几乎等价
+    # task = loop.create_task(get_html("https://www.baidu.com"))
+    # task.add_done_callback(partial(callback, "https://www.baidu.com"))  
+    # loop.run_until_complete(get_html("https://www.baidu.com"))
+    # print(task.result()) # 打印返回值
+    # loop.run_until_complete(asyncio.gather(*tasks))   # gather较wait更加 high-level  
+    # call_later, call_at, call_soon, call_soon_threadsafe
+
+
+
